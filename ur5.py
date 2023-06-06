@@ -17,6 +17,15 @@ class UR5:
         self.init_handles()
         print('Pronto!')
 
+    def setup_control_mode(self):
+        for i, dev in enumerate(self.joints):
+            dev.setPosition(float('inf'))
+            dev.getPositionSensor().enable(self.timestep)
+
+        for dev in self.finger_joints:
+            dev.setVelocity(float(100))
+            dev.getPositionSensor().enable(self.timestep)
+
     def init_handles(self):
         """
             This function initiates the nodes
@@ -24,23 +33,25 @@ class UR5:
         print('Inicializando os nós e handles...')
         self.joints = ['shoulder_pan_joint', 'shoulder_lift_joint', 'elbow_joint', 'wrist_1_joint', 'wrist_2_joint',
                        'wrist_3_joint']
+        self.joint_sensors = ['shoulder_pan_joint_sensor', 'shoulder_lift_joint_sensor', 'elbow_joint_sensor',
+                              'wrist_1_joint_sensor', 'wrist_2_joint_sensor',
+                       'wrist_3_joint']
         self.finger_joints = ['finger_1_joint_1', 'finger_1_joint_2', 'finger_1_joint_3',
                               'finger_2_joint_1', 'finger_2_joint_2', 'finger_2_joint_3',
                               'finger_middle_joint_1', 'finger_middle_joint_2', 'finger_middle_joint_3']
+        self.finger_joint_sensors = ['finger_1_joint_1_sensor', 'finger_1_joint_2_sensor', 'finger_1_joint_3_sensor',
+                                     'finger_2_joint_1_sensor', 'finger_2_joint_2_sensor', 'finger_2_joint_3_sensor',
+                                     'finger_middle_joint_1_sensor', 'finger_middle_joint_2_sensor',
+                                     'finger_middle_joint_3_sensor']
         self.joints = [self.supervisor.getDevice(joint) for joint in self.joints]
         self.finger_joints = [self.supervisor.getDevice(joint) for joint in self.finger_joints]
-        self.finger_joint_limits = [[0.0595, 0.8], [0.01, 1], [-0.8, -0.0623],
-                               [0.0595, 0.8], [0.01, 1], [-0.8, -0.0623],
-                               [0.0595, 0.8], [0.01, 1], [-0.8, -0.0623]]
+        self.joint_sensors = [self.supervisor.getDevice(sensor) for sensor in self.joint_sensors]
+        self.finger_joint_sensors = [self.supervisor.getDevice(s) for s in self.finger_joint_sensors]
+        self.finger_joint_limits = [[0.0695, 0.8], [0.01, 1], [-0.8, -0.0723],
+                               [0.0695, 0.8], [0.01, 1], [-0.8, -0.0723],
+                               [0.0695, 0.8], [0.01, 1], [-0.8, -0.0723]]
+        self.setup_control_mode()
 
-        for dev in self.joints:
-            dev.setPosition(float('inf'))
-            dev.setVelocity(0)
-            dev.setControlPID(1, 0, 0)
-            dev.getPositionSensor().enable(self.timestep)
-
-        for dev in self.finger_joints:
-            dev.getPositionSensor().enable(self.timestep)
 
     def get_joint_angles(self):
         angles = [joint.getPositionSensor().getValue() for joint in self.joints]
@@ -77,6 +88,7 @@ class UR5:
         acc = [[], [], [], [], [], []]
         jerk = [[], [], [], [], [], []]
         time_arr = [[], [], [], [], [], []]
+        self.setup_control_mode()
         while self.supervisor.getTime() <= tf:
             t = self.supervisor.getTime()
             for idx, joint in enumerate(self.joints):
@@ -122,6 +134,7 @@ class UR5:
         x = [np.linalg.solve(A, b[:, i]) for i in range(9)]
         time0 = self.supervisor.getTime()
         iterations = 0
+        self.setup_control_mode()
         while self.supervisor.getTime() <= tf:
             t = self.supervisor.getTime()
             for idx, joint in enumerate(self.finger_joints):
