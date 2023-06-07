@@ -67,12 +67,12 @@ def forward_kinematics(theta: 'list[float | int] | np.ndarray'):
             T (tuple[np.ndarray, np.ndarray]): total transformation matrix and
             transformation matrices for each joint
     """
-    d1 = 0.089159
+    d1 = 0.163
     a2 = 0.425
-    a3 = 0.39225
-    d4 = 0.10915
-    d5 = 0.09465
-    d6 = 0.17591+0.03
+    a3 = 0.393
+    d4 = .132
+    d5 = 0.098
+    d6 = 0.225
     dh_table = np.array([[0, PI/2, d1, 0],
                          [a2, 0, 0, PI/2],
                          [a3, 0, 0, 0],
@@ -114,12 +114,12 @@ def transform(theta: 'int | float', idx):
         Returns:
             T (np.array): transformation matrix
     """
-    d1 = 0.089159
+    d1 = 0.163
     a2 = 0.425
-    a3 = 0.39225
-    d4 = 0.10915
-    d5 = 0.09465
-    d6 = 0.17591+0.03
+    a3 = 0.393
+    d4 = .132
+    d5 = 0.098
+    d6 = 0.225
     dh_table = np.array([[0, PI/2, d1, 0],
                          [a2, 0, 0, PI/2],
                          [a3, 0, 0, 0],
