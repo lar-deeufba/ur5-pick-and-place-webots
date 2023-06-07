@@ -151,7 +151,8 @@ def forward_kinematics(theta: "list[float | int] | np.ndarray"):
                         -cos(theta[i] + dh_table[i][3]) * sin(dh_table[i][1]),
                         dh_table[i][0] * sin(theta[i] + dh_table[i][3]),
                     ],
-                    [0, sin(dh_table[i][1]), cos(dh_table[i][1]), dh_table[i][2]],
+                    [0, sin(dh_table[i][1]), cos(
+                        dh_table[i][1]), dh_table[i][2]],
                     [0, 0, 0, 1],
                 ]
             )
@@ -207,7 +208,8 @@ def transform(theta: "int | float", idx):
                 -cos(theta + dh_table[idx][3]) * sin(dh_table[idx][1]),
                 dh_table[idx][0] * sin(theta + dh_table[idx][3]),
             ],
-            [0, sin(dh_table[idx][1]), cos(dh_table[idx][1]), dh_table[idx][2]],
+            [0, sin(dh_table[idx][1]), cos(
+                dh_table[idx][1]), dh_table[idx][2]],
             [0, 0, 0, 1],
         ]
     )
@@ -278,7 +280,8 @@ def inverse_kinematics(th: "np.ndarray", shoulder="left", wrist="down", elbow="u
     th65 = transform(theta6, 5)
     inv = np.linalg.inv(np.dot(th54, th65))
     th41 = np.dot(th61, inv)
-    p31 = np.dot(th41, np.array([[0, d4, 0, 1]]).T) - np.array([[0, 0, 0, 1]]).T
+    p31 = np.dot(th41, np.array([[0, d4, 0, 1]]).T) - \
+        np.array([[0, 0, 0, 1]]).T
 
     p31_x = p31[0][0]
     p31_y = p31[1][0]
@@ -333,6 +336,7 @@ class UR5:
         self.timestep = int(self.supervisor.getBasicTimeStep())
         self.supervisor.step(self.timestep)
         self.joints = None
+        self.camera = None
         self.finger_joints = None
         self.finger_joint_limits = None
         self.init_handles()
@@ -352,6 +356,7 @@ class UR5:
         This function initiates the nodes
         """
         print("Inicializando os nós e handles...")
+        self.camera = self.supervisor.getDevice("camera")
         self.joints = [
             "shoulder_pan_joint",
             "shoulder_lift_joint",
@@ -390,7 +395,8 @@ class UR5:
             "finger_middle_joint_2_sensor",
             "finger_middle_joint_3_sensor",
         ]
-        self.joints = [self.supervisor.getDevice(joint) for joint in self.joints]
+        self.joints = [self.supervisor.getDevice(
+            joint) for joint in self.joints]
         self.finger_joints = [
             self.supervisor.getDevice(joint) for joint in self.finger_joints
         ]
@@ -413,8 +419,21 @@ class UR5:
         ]
         self.setup_control_mode()
 
+    def setup_camera(self):
+        self.camera.enable(self.timestep)
+        self.supervisor.step(self.timestep)
+        self.supervisor.step(self.timestep)
+
+    def get_image(self):
+        img = self.camera.getImageArray()
+        image = np.array(img)
+        image = image.astype(np.uint8)
+        image = image.reshape((512, 512, 3))
+        return image
+
     def get_joint_angles(self):
-        angles = [joint.getPositionSensor().getValue() for joint in self.joints]
+        angles = [joint.getPositionSensor().getValue()
+                  for joint in self.joints]
         # angles[0] -= pi
         # angles[1] += pi / 2
         # angles[3] += pi / 2
@@ -423,7 +442,8 @@ class UR5:
 
     def get_finger_angles(self):
         return np.array(
-            [joint.getPositionSensor().getValue() for joint in self.finger_joints]
+            [joint.getPositionSensor().getValue()
+             for joint in self.finger_joints]
         )
 
     def get_ground_truth(self):
@@ -436,8 +456,10 @@ class UR5:
         th6_world = np.hstack(
             (np.vstack((R6_world, np.zeros((1, 3)))), np.vstack((T6_world, 1)))
         )
-        R0_world = np.array(self.supervisor.getSelf().getOrientation()).reshape(3, 3)
-        T0_world = np.array(self.supervisor.getSelf().getPosition()).reshape(3, 1)
+        R0_world = np.array(
+            self.supervisor.getSelf().getOrientation()).reshape(3, 3)
+        T0_world = np.array(
+            self.supervisor.getSelf().getPosition()).reshape(3, 1)
         th0_world = np.hstack(
             (np.vstack((R0_world, np.zeros((1, 3)))), np.vstack((T0_world, 1)))
         )
@@ -590,7 +612,8 @@ class UR5:
                         + 12 * x[idx][4] * t**2
                         + 20 * x[idx][5] * t**3
                     )
-                    j = 6 * x[idx][3] + 24 * x[idx][4] * t + 60 * x[idx][5] * t**2
+                    j = 6 * x[idx][3] + 24 * x[idx][4] * \
+                        t + 60 * x[idx][5] * t**2
                     time_arr[idx].append(t - time0)
                     pos[idx].append(p)
                     vel[idx].append(v)
@@ -618,7 +641,8 @@ class UR5:
         for joint in self.joints:
             joint.setVelocity(0)
         timef = self.supervisor.getTime()
-        error = np.abs(np.array(target) - self.get_joint_angles()) * 180 / np.pi
+        error = np.abs(np.array(target) -
+                       self.get_joint_angles()) * 180 / np.pi
         print("Iterações totais: ", iterations)
         elapsed = timef - time0
         return (
@@ -642,14 +666,16 @@ class UR5:
             duration: time to reach position
         """
         T = build_matrix(pos, rot)
-        joint_angles = inverse_kinematics(T, wrist=wrist, shoulder="left", elbow="up")
+        joint_angles = inverse_kinematics(
+            T, wrist=wrist, shoulder="left", elbow="up")
         if duration is not None:
             self.move_to_config(target=joint_angles, duration=duration)
         else:
             self.move_to_config(joint_angles)
         gt = self.get_ground_truth()
         print(
-            "Erro pose final: ", np.linalg.norm(T - gt) / np.linalg.norm(gt) * 100, "%"
+            "Erro pose final: ", np.linalg.norm(
+                T - gt) / np.linalg.norm(gt) * 100, "%"
         )
 
     def actuate_gripper(self, close=0):
@@ -657,7 +683,8 @@ class UR5:
         v0 = np.zeros(9)
         vf = np.zeros(9)
         q0 = self.get_finger_angles()
-        qf = np.hstack((np.array([lim[close] for lim in self.finger_joint_limits])))
+        qf = np.hstack((np.array([lim[close]
+                       for lim in self.finger_joint_limits])))
         a0 = np.zeros(9)
         af = np.zeros(9)
         tf = t0 + 2
