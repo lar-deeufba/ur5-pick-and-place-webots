@@ -416,7 +416,7 @@ class UR5:
         angles = [joint.getPositionSensor().getValue() for joint in self.joints]
         angles[0] -= pi
         angles[1] += pi / 2
-        angles[3] += pi / 2
+        # angles[3] += pi / 2
         angles[5] -= pi / 2
         return np.array(angles)
 
