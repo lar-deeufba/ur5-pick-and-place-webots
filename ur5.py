@@ -337,6 +337,7 @@ class UR5:
         self.supervisor.step(self.timestep)
         self.joints = None
         self.camera = None
+        self.bottle = None
         self.finger_joints = None
         self.finger_joint_limits = None
         self.init_handles()
@@ -357,6 +358,7 @@ class UR5:
         """
         print("Inicializando os nós e handles...")
         self.camera = self.supervisor.getDevice("camera")
+        self.bottle = self.supervisor.getFromDef("bottle")
         self.joints = [
             "shoulder_pan_joint",
             "shoulder_lift_joint",
@@ -721,3 +723,25 @@ class UR5:
         timef = self.supervisor.getTime()
         print("Iterações totais: ", iterations)
         print(timef - time0)
+
+    def get_bottle_frame(self):
+        Rbottle_world = np.array(
+            self.bottle.getOrientation()
+        ).reshape(3, 3)
+        Tbottle_world = np.array(self.bottle.getPosition()).reshape(
+            3, 1
+        )
+        th6_world = np.hstack(
+            (np.vstack((Rbottle_world, np.zeros((1, 3)))),
+             np.vstack((Tbottle_world, 1)))
+        )
+        R0_world = np.array(
+            self.supervisor.getSelf().getOrientation()).reshape(3, 3)
+        T0_world = np.array(
+            self.supervisor.getSelf().getPosition()).reshape(3, 1)
+        th0_world = np.hstack(
+            (np.vstack((R0_world, np.zeros((1, 3)))), np.vstack((T0_world, 1)))
+        )
+        thworld_0 = np.linalg.inv(th0_world)
+        thbottle_0 = np.dot(thworld_0, th6_world)
+        return thbottle_0
