@@ -1,0 +1,61 @@
+#VRML_SIM R2023a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/appearances/protos/Parquetry.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/tables/protos/Table.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/humans/pedestrian/protos/Pedestrian.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/robots/universal_robots/protos/UR5e.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/devices/robotiq/protos/Robotiq3fGripper.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023a/projects/objects/drinks/protos/BeerBottle.proto"
+
+WorldInfo {
+}
+Viewpoint {
+  orientation 0.2850498872271083 0.13733625282442427 -0.948622852060796 2.434254752483352
+  position 1.1325234266624025 3.1198283701243446 3.921131279767685
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  floorSize 10 10
+  floorTileSize 2 2
+  floorAppearance Parquetry {
+    type "light strip"
+  }
+  wallHeight 1.2
+}
+UR5e {
+  translation -2.28 0 0.9
+  rotation 0 0 -1 -1.5707953071795862
+  controller "<extern>"
+  controllerArgs [
+    ""
+  ]
+  supervisor TRUE
+  toolSlot [
+    Robotiq3fGripper {
+    }
+  ]
+}
+DEF bottle BeerBottle {
+  translation -1.36 0 0.9
+}
+DEF table1 Table {
+  translation -1.37 0 0
+  name "table1"
+  size 0.8 1.4 0.9
+}
+Table {
+  translation -2.42 0 0
+  name "table2"
+  size 0.8 1.4 0.9
+}
+Pedestrian {
+  translation -0.64 -0.259999 1.27
+  rotation 0 0 1 3.14159
+  skinColor 0.319997 0.199603 0.0128023
+}
