@@ -6,7 +6,9 @@ maximizedDockId: -1
 centralWidgetVisible: 1
 orthographicViewHeight: 1
 textFiles: -1
+globalOptionalRendering: CameraFrustums
 consoles: Console:All:All
 renderingDevicePerspectives: NAO:CameraBottom;1;1;0;0
 renderingDevicePerspectives: NAO:CameraTop;1;1;0;0
+renderingDevicePerspectives: UR5e:camera;1;0.783203;0;0
 renderingDevicePerspectives: e-puck:camera;0;1;0;0
