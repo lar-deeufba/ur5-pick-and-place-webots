@@ -1,5 +1,6 @@
 import numpy as np
 from math import pi, cos, sin
+import math
 from controller import Supervisor
 from functools import reduce
 PI = pi
@@ -52,7 +53,44 @@ def rot_y(theta):
                      [-np.sin(theta), 0, np.cos(theta), 0],
                      [0, 0, 0, 1]])
 
-# TODO: checar erro constante de 2.87 % na cinemática direta
+
+def limit_angle(angle):
+    """
+        Limits the angle between -pi and pi
+
+        Parameters:
+            angle (float): angle in radians
+
+        Returns:
+            angle (float): angle in radians between -pi and pi
+    """
+    angle_mod = angle % (2*np.pi)
+    if angle_mod > np.pi:
+        return angle_mod - 2*np.pi
+    else:
+        return angle_mod
+
+
+def build_matrix(pos: 'np.ndarray', rot: 'np.ndarray'):
+    """
+        Builds the transformation matrix from position and Euler angles
+
+        Parameters:
+            pos (list[float | int]): position
+            rot (list[float | int]): XYZ rotation (Euler angles)
+
+        Returns:
+            R (np.array): transformation matrix
+    """
+    Rx = rot_x(rot[0])
+    Ry = rot_y(rot[1])
+    Rz = rot_z(rot[2])
+    R = np.dot(Rx, Ry)
+    R = np.dot(R, Rz)
+    R[0][3] = pos[0]
+    R[1][3] = pos[1]
+    R[2][3] = pos[2]
+    return R
 
 
 def forward_kinematics(theta: 'list[float | int] | np.ndarray'):
@@ -144,6 +182,111 @@ def transform(theta: 'int | float', idx):
                     dh_table[idx][2]],
                    [0, 0, 0, 1]])
     return th
+
+
+def inverse_kinematics(th: 'np.ndarray', shoulder='left', wrist='down', elbow='up'):
+    """
+        Calculates inverse kinematics for UR5
+
+        Parameters:
+            th (np.ndarray): transformation matrix
+            shoulder (str): 'left' or 'right'
+            wrist (str): 'up' or 'down'
+            elbow (str): 'up' or 'down'
+
+        Returns:
+            theta (list[float]): joint angles in radians
+    """
+    a2 = 0.425
+    a3 = 0.39225
+    d4 = 0.10915
+    d6 = 0.17591
+    o5 = th.dot(np.array([[0, 0, -d6, 1]]).T)
+    xc, yc, zc = o5[0][0], o5[1][0], o5[2][0]
+
+    # Theta 1
+    psi = math.atan2(yc, xc)
+    phi = math.acos(d4/np.sqrt(xc**2 + yc**2))
+    theta1 = np.array([psi - phi + PI/2, psi + phi + PI/2])
+    T1 = np.array([limit_angle(theta1[0]), limit_angle(theta1[1])])
+    if shoulder == 'left':
+        theta1 = T1[0]
+    else:
+        theta1 = T1[1]
+
+    # Theta 5
+    P60 = np.dot(th, np.array([[0, 0, 0, 1]]).T)
+    x60 = P60[0][0]
+    y60 = P60[1][0]
+    z61 = x60*np.sin(T1) - y60*np.cos(T1)
+    T5 = np.array([np.arccos((z61 - d4)/d6), -np.arccos((z61 - d4)/d6)]).T
+    if shoulder == 'left':
+        T5 = T5[0]
+        if wrist == 'up':
+            theta5 = T5[0]
+        else:
+            theta5 = T5[1]
+    else:
+        T5 = T5[1]
+        if wrist == 'down':
+            theta5 = T5[0]
+        else:
+            theta5 = T5[1]
+
+    # Theta 6
+    th10 = transform(theta1, 0)
+    th01 = np.linalg.inv(th10)
+    th16 = np.linalg.inv(np.dot(th01, th))
+    z16_y = th16[1][2]
+    z16_x = th16[0][2]
+    theta6 = math.atan2(-z16_y/np.sin(theta5), z16_x/np.sin(theta5))+PI
+    theta6 = limit_angle(theta6)
+
+    # Theta 3
+    th61 = np.dot(th01, th)
+    th54 = transform(theta5, 4)
+    th65 = transform(theta6, 5)
+    inv = np.linalg.inv(np.dot(th54, th65))
+    th41 = np.dot(th61, inv)
+    p31 = np.dot(th41, np.array([[0, d4, 0, 1]]).T) - \
+        np.array([[0, 0, 0, 1]]).T
+
+    p31_x = p31[0][0]
+    p31_y = p31[1][0]
+    D = (p31_x**2 + p31_y**2 - a2**2 - a3**2)/(2*a2*a3)
+    T3 = np.array([math.atan2(-np.sqrt(1-D**2), D),
+                  math.atan2(np.sqrt(1-D**2), D)])
+    if shoulder == 'left':
+        if elbow == 'up':
+            theta3 = T3[0]
+        else:
+            theta3 = T3[1]
+    else:
+        if elbow == 'up':
+            theta3 = T3[1]
+        else:
+            theta3 = T3[0]
+
+    # Theta 2
+    delta = math.atan2(p31_x, p31_y)
+    epsilon = math.acos((a2**2 + p31_x**2 + p31_y**2 - a3 **
+                        2)/(2*a2*np.sqrt(p31_x**2 + p31_y**2)))
+    T2 = np.array([- delta + epsilon, - delta - epsilon])
+    if shoulder == 'left':
+        theta2 = T2[0]
+    else:
+        theta2 = T2[1]
+
+    # Theta 4
+    th21 = transform(theta2, 1)
+    th32 = transform(theta3, 2)
+    inv = np.linalg.inv(np.dot(th21, th32))
+    th43 = np.dot(inv, th41)
+    x43_x = th43[0][0]
+    x43_y = th43[1][0]
+    theta4 = math.atan2(x43_x, -x43_y)
+
+    return [theta1, theta2, theta3, theta4, theta5, theta6]
 
 
 class UR5:
@@ -290,6 +433,27 @@ class UR5:
         print('Iterações totais: ', iterations)
         elapsed = timef - time0
         return (elapsed, np.max(error), np.mean(error))
+
+    def move_to_pose(self, pos: 'np.ndarray', rot: 'np.ndarray', wrist='down', duration=None):
+        """
+            Move to specified position and orientation
+
+            Parameters:
+                pos: [x, y, z] coordinates
+                rot: [rot_x, rot_y, rot_z] Euler angles
+                wrist: 'up' or 'down'
+                duration: time to reach position
+        """
+        T = build_matrix(pos, rot)
+        joint_angles = inverse_kinematics(
+            T, wrist=wrist, shoulder='left', elbow='up')
+        if duration is not None:
+            self.move_to_config(target=joint_angles, duration=duration)
+        else:
+            self.move_to_config(joint_angles)
+        gt = self.get_ground_truth()
+        print('Erro pose final: ', np.linalg.norm(
+            T-gt)/np.linalg.norm(gt)*100, '%')
 
     def actuate_gripper(self, close=0):
         t0 = self.supervisor.getTime()
