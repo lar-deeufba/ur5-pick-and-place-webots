@@ -329,6 +329,7 @@ class UR5:
     def __init__(self):
         print("Inicializando a classe UR5...")
         self.supervisor = Supervisor()
+        self.supervisor.simulationReset()
         self.timestep = int(self.supervisor.getBasicTimeStep())
         self.supervisor.step(self.timestep)
         self.joints = None
@@ -414,10 +415,10 @@ class UR5:
 
     def get_joint_angles(self):
         angles = [joint.getPositionSensor().getValue() for joint in self.joints]
-        angles[0] -= pi
-        angles[1] += pi / 2
+        # angles[0] -= pi
+        # angles[1] += pi / 2
         # angles[3] += pi / 2
-        angles[5] -= pi / 2
+        # angles[5] -= pi / 2
         return np.array(angles)
 
     def get_finger_angles(self):
@@ -522,6 +523,7 @@ class UR5:
 
             jacob: linear and angular end-effector velocities
         """
+        self.supervisor.step(self.timestep)
         t0 = self.supervisor.getTime()
         v0 = np.zeros(6)
         vf = np.zeros(6)
