@@ -230,7 +230,7 @@ class UR5:
         th6_0 = np.dot(thworld_0, th6_world)
         return th6_0
 
-    def move_to_config(self, target, duration=5):
+    def move_to_config(self, target, duration=None):
         t0 = self.supervisor.getTime()
         v0 = np.zeros(6)
         vf = np.zeros(6)
@@ -238,6 +238,10 @@ class UR5:
         qf = np.array(target)
         a0 = np.zeros(6)
         af = np.zeros(6)
+        if duration is None:
+            duration = np.max(np.abs(qf-q0))*(4/(.5*PI))
+            if duration < 1.5:
+                duration = 1.5
         tf = t0 + duration
         A = np.array([[1, t0, t0**2, t0**3, t0**4, t0**5],
                       [0, 1, 2*t0, 3*t0**2, 4*t0**3, 5*t0**4],
