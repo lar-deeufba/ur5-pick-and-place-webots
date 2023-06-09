@@ -1,10 +1,24 @@
+"""
+    @brief: This file contains the UR5 class, which is used to control the UR5 robot in Webots
+    @version: v1.0
+    @date: 2023/6/9
+    @author: Allan Souza Almeida
+
+    @how_to_use:
+        1. Import the class: from ur5 import UR5
+        2. Create an instance of the class: ur5 = UR5()
+        3. Use the functions to control the robot angles (FK): ur5.move_to_config([0, 0, 0, 0, 0, 0])
+        4. Use the functions to control the robot poses (IK): ur5.move_to_pose([0.2, 0, 0.4], [pi/2, 0, 0])
+        5. Use the functions to control the gripper: ur5.actuate_gripper(1)
+
+"""
+
 import numpy as np
 from math import pi, cos, sin
 import math
 from controller import Supervisor
 from functools import reduce
 from scipy.spatial.transform import Rotation
-
 PI = pi
 
 
@@ -92,6 +106,7 @@ def build_matrix(pos: "np.ndarray", rot: "np.ndarray", euler: "str" = "XYZ"):
     Parameters:
         pos (list[float | int]): position
         rot (list[float | int]): XYZ rotation (Euler angles)
+        euler (str): Euler angle order (XYZ or ZYX)
 
     Returns:
         R (np.array): transformation matrix
@@ -357,6 +372,9 @@ class UR5:
     """
 
     def __init__(self):
+        """
+        This function initializes the UR5 object and the simulation
+        """
         print("Inicializando a classe UR5...")
         self.supervisor = Supervisor()
         self.supervisor.simulationReset()
@@ -371,6 +389,10 @@ class UR5:
         print("Pronto!")
 
     def setup_control_mode(self):
+        """
+        This function sets up the control mode of the joints 
+        (velocity for the robot and position for the fingers)
+        """
         for i, dev in enumerate(self.joints):
             dev.setPosition(float("inf"))
             dev.getPositionSensor().enable(self.timestep)
@@ -449,11 +471,20 @@ class UR5:
         self.setup_control_mode()
 
     def setup_camera(self):
+        """
+        This function enables the camera
+        """
         self.camera.enable(self.timestep)
         self.supervisor.step(self.timestep)
         self.supervisor.step(self.timestep)
 
     def get_image(self):
+        """
+        This function gets the image from the camera
+
+        Returns:
+            image (np.ndarray): numpy array of the image
+        """
         img = self.camera.getImageArray()
         image = np.array(img)
         image = image.astype(np.uint8)
@@ -461,6 +492,12 @@ class UR5:
         return image
 
     def get_joint_angles(self):
+        """
+        This function gets the joint angles of the robot
+
+        Returns:
+            angles (np.ndarray): numpy array of the joint angles
+        """
         angles = [joint.getPositionSensor().getValue()
                   for joint in self.joints]
         # angles[0] -= pi
@@ -470,12 +507,24 @@ class UR5:
         return np.array(angles)
 
     def get_finger_angles(self):
+        """
+        This function gets the joint angles of the fingers
+
+        Returns:
+            angles (np.ndarray): numpy array of the joint angles
+        """
         return np.array(
             [joint.getPositionSensor().getValue()
              for joint in self.finger_joints]
         )
 
     def get_ground_truth(self):
+        """
+        This function gets the ground truth of frame 6 relative to frame 0
+
+        Returns:
+            th0_6 (np.ndarray): Homogeneous transformation of frame 6 relative to frame 0
+        """
         R6_world = np.array(
             self.supervisor.getFromDef("frame6").getOrientation()
         ).reshape(3, 3)
@@ -691,8 +740,11 @@ class UR5:
         Parameters:
             pos: [x, y, z] coordinates
             rot: [rot_x, rot_y, rot_z] Euler angles
+            euler: Euler angle order (default: 'XYZ')
             wrist: 'up' or 'down'
+            shoulder: 'left' or 'right'
             duration: time to reach position
+            verbose: print error
         """
         T = build_matrix(pos, rot, euler=euler)
         joint_angles = inverse_kinematics(
@@ -707,7 +759,14 @@ class UR5:
             print("Erro angular: ", angle_err, " graus")
             print("Erro posicional: ", pos_err, " mm")
 
-    def actuate_gripper(self, close=0):
+    def actuate_gripper(self, close=0, duration=2):
+        """
+        Actuate gripper to open or close
+
+        Parameters:
+            close (int): 0 to open, 1 to close
+            duration (int | float): time to close or open
+        """
         t0 = self.supervisor.getTime()
         v0 = np.zeros(9)
         vf = np.zeros(9)
@@ -716,7 +775,7 @@ class UR5:
                        for lim in self.finger_joint_limits])))
         a0 = np.zeros(9)
         af = np.zeros(9)
-        tf = t0 + 2
+        tf = t0 + duration
         A = np.array(
             [
                 [1, t0, t0**2, t0**3, t0**4, t0**5],
@@ -752,6 +811,12 @@ class UR5:
         print(timef - time0)
 
     def get_bottle_frame(self):
+        """
+        Get bottle frame relative to robot base
+
+        Returns:
+            bottle_frame: bottle frame relative to robot base
+        """
         Rbottle_world = np.array(
             self.bottle.getOrientation()
         ).reshape(3, 3)
