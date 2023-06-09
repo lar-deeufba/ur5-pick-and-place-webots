@@ -143,12 +143,12 @@ def forward_kinematics(theta: "list[float | int] | np.ndarray"):
         T (tuple[np.ndarray, np.ndarray]): total transformation matrix and
         transformation matrices for each joint
     """
-    d1 = 0.163
+    d1 = 0.1625
     a2 = 0.425
-    a3 = 0.393
-    d4 = 0.132
-    d5 = 0.098
-    d6 = 0.225
+    a3 = 0.3922
+    d4 = 0.1333
+    d5 = 0.0997
+    d6 = 0.0996+0.1237
     dh_table = np.array(
         [
             [0, PI / 2, d1, 0],
@@ -202,12 +202,12 @@ def transform(theta: "int | float", idx):
     Returns:
         T (np.array): transformation matrix
     """
-    d1 = 0.163
+    d1 = 0.1625
     a2 = 0.425
-    a3 = 0.393
-    d4 = 0.132
-    d5 = 0.098
-    d6 = 0.225
+    a3 = 0.3922
+    d4 = 0.1333
+    d5 = 0.0997
+    d6 = 0.0996+0.1237
     dh_table = np.array(
         [
             [0, PI / 2, d1, 0],
@@ -255,9 +255,9 @@ def inverse_kinematics(th: "np.ndarray", shoulder="left", wrist="down", elbow="u
         theta (list[float]): joint angles in radians
     """
     a2 = 0.425
-    a3 = 0.39225
-    d4 = 0.10915
-    d6 = 0.17591
+    a3 = 0.3922
+    d4 = 0.1333
+    d6 = 0.0996+0.1237
     o5 = th.dot(np.array([[0, 0, -d6, 1]]).T)
     xc, yc, zc = o5[0][0], o5[1][0], o5[2][0]
 
@@ -681,7 +681,7 @@ class UR5:
         )
 
     def move_to_pose(
-        self, pos: "np.ndarray", rot: "np.ndarray", wrist="down", duration=None
+        self, pos: "np.ndarray", rot: "np.ndarray", wrist="down", shoulder="left", duration=None, verbose=False
     ):
         """
         Move to specified position and orientation
@@ -694,15 +694,16 @@ class UR5:
         """
         T = build_matrix(pos, rot)
         joint_angles = inverse_kinematics(
-            T, wrist=wrist, shoulder="left", elbow="up")
+            T, wrist=wrist, shoulder=shoulder, elbow="up")
         if duration is not None:
             self.move_to_config(target=joint_angles, duration=duration)
         else:
             self.move_to_config(joint_angles)
-        gt = self.get_ground_truth()
-        angle_err, pos_err = matrix_error(T, gt)
-        print("Erro angular: ", angle_err, " graus")
-        print("Erro posicional: ", pos_err, " mm")
+        if verbose:
+            gt = self.get_ground_truth()
+            angle_err, pos_err = matrix_error(T, gt)
+            print("Erro angular: ", angle_err, " graus")
+            print("Erro posicional: ", pos_err, " mm")
 
     def actuate_gripper(self, close=0):
         t0 = self.supervisor.getTime()
