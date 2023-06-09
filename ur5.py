@@ -85,7 +85,7 @@ def limit_angle(angle):
         return angle_mod
 
 
-def build_matrix(pos: "np.ndarray", rot: "np.ndarray"):
+def build_matrix(pos: "np.ndarray", rot: "np.ndarray", euler: "str" = "XYZ"):
     """
     Builds the transformation matrix from position and Euler angles
 
@@ -99,8 +99,10 @@ def build_matrix(pos: "np.ndarray", rot: "np.ndarray"):
     Rx = rot_x(rot[0])
     Ry = rot_y(rot[1])
     Rz = rot_z(rot[2])
-    R = np.dot(Rx, Ry)
-    R = np.dot(R, Rz)
+    if euler == "XYZ":
+        R = reduce(np.dot, [Rx, Ry, Rz])
+    elif euler == "ZYX":
+        R = reduce(np.dot, [Rz, Ry, Rx])
     R[0][3] = pos[0]
     R[1][3] = pos[1]
     R[2][3] = pos[2]
@@ -681,7 +683,7 @@ class UR5:
         )
 
     def move_to_pose(
-        self, pos: "np.ndarray", rot: "np.ndarray", wrist="down", shoulder="left", duration=None, verbose=False
+        self, pos: "np.ndarray", rot: "np.ndarray", euler="XYZ", wrist="down", shoulder="left", duration=None, verbose=False
     ):
         """
         Move to specified position and orientation
@@ -692,7 +694,7 @@ class UR5:
             wrist: 'up' or 'down'
             duration: time to reach position
         """
-        T = build_matrix(pos, rot)
+        T = build_matrix(pos, rot, euler=euler)
         joint_angles = inverse_kinematics(
             T, wrist=wrist, shoulder=shoulder, elbow="up")
         if duration is not None:
