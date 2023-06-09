@@ -3,6 +3,7 @@ from math import pi, cos, sin
 import math
 from controller import Supervisor
 from functools import reduce
+from scipy.spatial.transform import Rotation
 
 PI = pi
 
@@ -104,6 +105,30 @@ def build_matrix(pos: "np.ndarray", rot: "np.ndarray"):
     R[1][3] = pos[1]
     R[2][3] = pos[2]
     return R
+
+
+def matrix_error(T1: "np.ndarray", T2: "np.ndarray"):
+    """
+    Calculates the error between two transformation matrices
+
+    Parameters:
+        T1 (np.ndarray): transformation matrix
+        T2 (np.ndarray): transformation matrix
+
+    Returns:
+        angle_error (float): angle error between the two matrices
+        pos_error (float): position error between the two matrices
+    """
+    R1 = T1[:3, :3]
+    R2 = T2[:3, :3]
+    R_diff = np.dot(R1, R2.T)
+    r = Rotation.from_matrix(R_diff)
+    axis = r.as_rotvec()
+    angle = np.linalg.norm(axis)*180/PI
+    P1 = T1[:3, 3]
+    P2 = T2[:3, 3]
+    dist = np.linalg.norm(P1 - P2)*1000
+    return angle, dist
 
 
 def forward_kinematics(theta: "list[float | int] | np.ndarray"):
@@ -675,10 +700,9 @@ class UR5:
         else:
             self.move_to_config(joint_angles)
         gt = self.get_ground_truth()
-        print(
-            "Erro pose final: ", np.linalg.norm(
-                T - gt) / np.linalg.norm(gt) * 100, "%"
-        )
+        angle_err, pos_err = matrix_error(T, gt)
+        print("Erro angular: ", angle_err, " graus")
+        print("Erro posicional: ", pos_err, " mm")
 
     def actuate_gripper(self, close=0):
         t0 = self.supervisor.getTime()
