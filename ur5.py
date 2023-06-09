@@ -13,12 +13,16 @@
 
 """
 
+from skimage.transform import resize
 import numpy as np
 from math import pi, cos, sin
 import math
 from controller import Supervisor
 from functools import reduce
 from scipy.spatial.transform import Rotation
+from keras.models import load_model
+import matplotlib.pyplot as plt
+
 PI = pi
 
 
@@ -385,6 +389,8 @@ class UR5:
         self.bottle = None
         self.finger_joints = None
         self.finger_joint_limits = None
+        print('Inicializando o modelo de visão computacional...')
+        self.model = load_model("computer_vision/vgg16.h5")
         self.init_handles()
         print("Pronto!")
 
@@ -810,6 +816,52 @@ class UR5:
         print("Iterações totais: ", iterations)
         print(timef - time0)
 
+    def predict_bottle_position(self, show_img=True):
+        """
+        Predict bottle position using VGG16 model
+
+        Parameters:
+            show_img (bool): show image with predicted position
+
+        Returns:
+            (x, y) coordinates of bottle in frame 0
+        """
+        self.setup_camera()
+        img = self.get_image()
+        resized_img = resize(img, (256, 256), anti_aliasing=True)
+        img_tensor = np.expand_dims(resized_img, axis=0)
+        prediction = self.model.predict(img_tensor)
+        ximg, yimg = prediction[0][0], prediction[0][1]
+        xlim = [40, 465]
+        ylim = [81, 395]
+        x_real_lim = [-1.1599511371082611, -1.759950096116547]
+        y_real_lim = [0.2911156981348095, -0.511156981348095]
+        yreal = np.interp(ximg, xlim, y_real_lim)
+        xreal = np.interp(yimg, ylim, x_real_lim)
+        R0_world = np.array(
+            self.supervisor.getSelf().getOrientation()).reshape(3, 3)
+        T0_world = np.array(
+            self.supervisor.getSelf().getPosition()).reshape(3, 1)
+        th0_world = np.hstack(
+            (np.vstack((R0_world, np.zeros((1, 3)))), np.vstack((T0_world, 1)))
+        )
+        Rbottle_world = np.eye(3)
+        Tbottle_world = np.array([xreal, yreal, 0.0]).reshape(3, 1)
+        th_bottle_world = np.hstack(
+            (np.vstack((Rbottle_world, np.zeros((1, 3)))),
+             np.vstack((Tbottle_world, 1)))
+        )
+        th_world_0 = np.linalg.inv(th0_world)
+        th_bottle_0 = np.dot(th_world_0, th_bottle_world)
+        if show_img:
+            ground_truth = self.get_bottle_frame()[:2, 3]
+            print("Posição real: ", ground_truth)
+            print("Posição predita: ", th_bottle_0[:2, 3])
+            plt.imshow(img)
+            plt.scatter(ximg, yimg, c="r", s=50)
+            plt.show()
+        return th_bottle_0[0, 3], th_bottle_0[1, 3]
+
     def get_bottle_frame(self):
         """
         Get bottle frame relative to robot base
@@ -823,7 +875,7 @@ class UR5:
         Tbottle_world = np.array(self.bottle.getPosition()).reshape(
             3, 1
         )
-        th6_world = np.hstack(
+        th_bottle_world = np.hstack(
             (np.vstack((Rbottle_world, np.zeros((1, 3)))),
              np.vstack((Tbottle_world, 1)))
         )
@@ -834,6 +886,6 @@ class UR5:
         th0_world = np.hstack(
             (np.vstack((R0_world, np.zeros((1, 3)))), np.vstack((T0_world, 1)))
         )
-        thworld_0 = np.linalg.inv(th0_world)
-        thbottle_0 = np.dot(thworld_0, th6_world)
-        return thbottle_0
+        th_world_0 = np.linalg.inv(th0_world)
+        th_bottle_0 = np.dot(th_world_0, th_bottle_world)
+        return th_bottle_0
