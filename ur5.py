@@ -275,99 +275,105 @@ def inverse_kinematics(th: "np.ndarray", shoulder="left", wrist="down", elbow="u
     Returns:
         theta (list[float]): joint angles in radians
     """
-    a2 = 0.425
-    a3 = 0.3922
-    d4 = 0.1333
-    d6 = 0.0996+0.1237
-    o5 = th.dot(np.array([[0, 0, -d6, 1]]).T)
-    xc, yc, zc = o5[0][0], o5[1][0], o5[2][0]
+    try:
+        a2 = 0.425
+        a3 = 0.3922
+        d4 = 0.1333
+        d6 = 0.0996+0.1237
+        o5 = th.dot(np.array([[0, 0, -d6, 1]]).T)
+        xc, yc, zc = o5[0][0], o5[1][0], o5[2][0]
 
-    # Theta 1
-    psi = math.atan2(yc, xc)
-    phi = math.acos(d4 / np.sqrt(xc**2 + yc**2))
-    theta1 = np.array([psi - phi + PI / 2, psi + phi + PI / 2])
-    T1 = np.array([limit_angle(theta1[0]), limit_angle(theta1[1])])
-    if shoulder == "left":
-        theta1 = T1[0]
-    else:
-        theta1 = T1[1]
-
-    # Theta 5
-    P60 = np.dot(th, np.array([[0, 0, 0, 1]]).T)
-    x60 = P60[0][0]
-    y60 = P60[1][0]
-    z61 = x60 * np.sin(T1) - y60 * np.cos(T1)
-    T5 = np.array([np.arccos((z61 - d4) / d6), -np.arccos((z61 - d4) / d6)]).T
-    if shoulder == "left":
-        T5 = T5[0]
-        if wrist == "up":
-            theta5 = T5[0]
+        # Theta 1
+        psi = math.atan2(yc, xc)
+        phi = math.acos(d4 / np.sqrt(xc**2 + yc**2))
+        theta1 = np.array([psi - phi + PI / 2, psi + phi + PI / 2])
+        T1 = np.array([limit_angle(theta1[0]), limit_angle(theta1[1])])
+        if shoulder == "left":
+            theta1 = T1[0]
         else:
-            theta5 = T5[1]
-    else:
-        T5 = T5[1]
-        if wrist == "down":
-            theta5 = T5[0]
+            theta1 = T1[1]
+
+        # Theta 5
+        P60 = np.dot(th, np.array([[0, 0, 0, 1]]).T)
+        x60 = P60[0][0]
+        y60 = P60[1][0]
+        z61 = x60 * np.sin(T1) - y60 * np.cos(T1)
+        T5 = np.array([np.arccos((z61 - d4) / d6), -
+                      np.arccos((z61 - d4) / d6)]).T
+        if shoulder == "left":
+            T5 = T5[0]
+            if wrist == "up":
+                theta5 = T5[0]
+            else:
+                theta5 = T5[1]
         else:
-            theta5 = T5[1]
+            T5 = T5[1]
+            if wrist == "down":
+                theta5 = T5[0]
+            else:
+                theta5 = T5[1]
 
-    # Theta 6
-    th10 = transform(theta1, 0)
-    th01 = np.linalg.inv(th10)
-    th16 = np.linalg.inv(np.dot(th01, th))
-    z16_y = th16[1][2]
-    z16_x = th16[0][2]
-    theta6 = math.atan2(-z16_y / np.sin(theta5), z16_x / np.sin(theta5)) + PI
-    theta6 = limit_angle(theta6)
+        # Theta 6
+        th10 = transform(theta1, 0)
+        th01 = np.linalg.inv(th10)
+        th16 = np.linalg.inv(np.dot(th01, th))
+        z16_y = th16[1][2]
+        z16_x = th16[0][2]
+        theta6 = math.atan2(-z16_y / np.sin(theta5),
+                            z16_x / np.sin(theta5)) + PI
+        theta6 = limit_angle(theta6)
 
-    # Theta 3
-    th61 = np.dot(th01, th)
-    th54 = transform(theta5, 4)
-    th65 = transform(theta6, 5)
-    inv = np.linalg.inv(np.dot(th54, th65))
-    th41 = np.dot(th61, inv)
-    p31 = np.dot(th41, np.array([[0, d4, 0, 1]]).T) - \
-        np.array([[0, 0, 0, 1]]).T
+        # Theta 3
+        th61 = np.dot(th01, th)
+        th54 = transform(theta5, 4)
+        th65 = transform(theta6, 5)
+        inv = np.linalg.inv(np.dot(th54, th65))
+        th41 = np.dot(th61, inv)
+        p31 = np.dot(th41, np.array([[0, d4, 0, 1]]).T) - \
+            np.array([[0, 0, 0, 1]]).T
 
-    p31_x = p31[0][0]
-    p31_y = p31[1][0]
-    D = (p31_x**2 + p31_y**2 - a2**2 - a3**2) / (2 * a2 * a3)
-    T3 = np.array(
-        [math.atan2(-np.sqrt(1 - D**2), D), math.atan2(np.sqrt(1 - D**2), D)]
-    )
-    if shoulder == "left":
-        if elbow == "up":
-            theta3 = T3[0]
+        p31_x = p31[0][0]
+        p31_y = p31[1][0]
+        D = (p31_x**2 + p31_y**2 - a2**2 - a3**2) / (2 * a2 * a3)
+        T3 = np.array(
+            [math.atan2(-np.sqrt(1 - D**2), D),
+             math.atan2(np.sqrt(1 - D**2), D)]
+        )
+        if shoulder == "left":
+            if elbow == "up":
+                theta3 = T3[0]
+            else:
+                theta3 = T3[1]
         else:
-            theta3 = T3[1]
-    else:
-        if elbow == "up":
-            theta3 = T3[1]
+            if elbow == "up":
+                theta3 = T3[1]
+            else:
+                theta3 = T3[0]
+
+        # Theta 2
+        delta = math.atan2(p31_x, p31_y)
+        epsilon = math.acos(
+            (a2**2 + p31_x**2 + p31_y**2 - a3**2)
+            / (2 * a2 * np.sqrt(p31_x**2 + p31_y**2))
+        )
+        T2 = np.array([-delta + epsilon, -delta - epsilon])
+        if shoulder == "left":
+            theta2 = T2[0]
         else:
-            theta3 = T3[0]
+            theta2 = T2[1]
 
-    # Theta 2
-    delta = math.atan2(p31_x, p31_y)
-    epsilon = math.acos(
-        (a2**2 + p31_x**2 + p31_y**2 - a3**2)
-        / (2 * a2 * np.sqrt(p31_x**2 + p31_y**2))
-    )
-    T2 = np.array([-delta + epsilon, -delta - epsilon])
-    if shoulder == "left":
-        theta2 = T2[0]
-    else:
-        theta2 = T2[1]
+        # Theta 4
+        th21 = transform(theta2, 1)
+        th32 = transform(theta3, 2)
+        inv = np.linalg.inv(np.dot(th21, th32))
+        th43 = np.dot(inv, th41)
+        x43_x = th43[0][0]
+        x43_y = th43[1][0]
+        theta4 = math.atan2(x43_x, -x43_y)
 
-    # Theta 4
-    th21 = transform(theta2, 1)
-    th32 = transform(theta3, 2)
-    inv = np.linalg.inv(np.dot(th21, th32))
-    th43 = np.dot(inv, th41)
-    x43_x = th43[0][0]
-    x43_y = th43[1][0]
-    theta4 = math.atan2(x43_x, -x43_y)
-
-    return [theta1, theta2, theta3, theta4, theta5, theta6]
+        return [theta1, theta2, theta3, theta4, theta5, theta6]
+    except ValueError:
+        raise ValueError("Posição inalcançável para o braço robótico")
 
 
 class UR5:
