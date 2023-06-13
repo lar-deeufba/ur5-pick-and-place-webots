@@ -15,6 +15,8 @@ The computer vision part of the project is implemented via a CNN. The CNN is tra
 to detect the bottle position on the image. The CNN is implemented in Tensorflow and Keras,
 and it uses a VGG16 pre-trained model as a base. The CNN is modified to predict the bottle position relative to the image and convert it to the real XYZ coordinates using bilinear interpolation. It is trained and evaluated on a dataset of 5000 images.
 
+<a href="https://youtu.be/XgvYlSNmqiI">Demo video</a>
+
 ## Dependencies
 
 - Webots
